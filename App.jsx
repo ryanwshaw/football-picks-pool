@@ -48,16 +48,6 @@ function defaultWeekState(weekNum) {
   return { picks, winners: {} };
 }
 
-function weekIsComplete(weekState, weekNum) {
-  const games = WEEKS[weekNum]?.games || [];
-  if (games.length === 0) return false;
-  return games.every(g => weekState?.winners?.[g.id]);
-}
-
-function weekHasGames(weekNum) {
-  return (WEEKS[weekNum]?.games || []).length > 0;
-}
-
 function calcWeekScore(player, weekState) {
   let s = 0;
   const winners = weekState?.winners || {};
@@ -67,6 +57,17 @@ function calcWeekScore(player, weekState) {
     if (p?.team === w && p?.confidence) s += p.confidence;
   });
   return s;
+}
+
+function weekIsComplete(weekState, weekNum) {
+  const games = WEEKS[weekNum]?.games || [];
+  if (games.length === 0) return false;
+  const winners = weekState?.winners || {};
+  return games.every(g => winners[g.id]);
+}
+
+function weekHasGames(weekNum) {
+  return (WEEKS[weekNum]?.games || []).length > 0;
 }
 
 function detectCurrentWeek() {
@@ -116,10 +117,14 @@ export default function App() {
   /* ─── Firebase write helpers ─── */
   const writeWeek = useCallback((weekNum, updater) => {
     const current = weekStates[weekNum] || defaultWeekState(weekNum);
-    const next = updater(current);
-    // Optimistic local update
+    // Ensure picks and winners are never null
+    const safe = {
+      ...current,
+      picks: current.picks || {},
+      winners: current.winners || {},
+    };
+    const next = updater(safe);
     setWeekStates(prev => ({ ...prev, [weekNum]: next }));
-    // Write to Firebase
     set(ref(db, `pool/weeks/${weekNum}`), next).catch(console.error);
   }, [weekStates]);
 
@@ -128,14 +133,16 @@ export default function App() {
   const weekData = weekStates[week] || defaultWeekState(week);
   const games = WEEKS[week]?.games || [];
   const numGames = games.length;
-  const { picks, winners } = weekData;
+  const picks = weekData.picks || {};
+  const winners = weekData.winners || {};
   const currentWeek = detectCurrentWeek();
   const isComplete = weekIsComplete(weekData, week);
 
   const usedConfidence = (player) => {
     const s = new Set();
-    if (!picks[player]) return s;
-    Object.values(picks[player]).forEach(p => { if (p.confidence) s.add(p.confidence); });
+    if (!player || !picks[player]) return s;
+    const playerPicks = picks[player] || {};
+    Object.values(playerPicks).forEach(p => { if (p?.confidence) s.add(p.confidence); });
     return s;
   };
 
@@ -151,8 +158,8 @@ export default function App() {
 
   const totalAssigned = (player) => {
     let s = 0;
-    if (!picks[player]) return s;
-    Object.values(picks[player]).forEach(p => { if (p.confidence) s += p.confidence; });
+    const playerPicks = picks[player] || {};
+    Object.values(playerPicks).forEach(p => { if (p?.confidence) s += p.confidence; });
     return s;
   };
 
@@ -187,8 +194,8 @@ export default function App() {
     if (!activePlayer) return;
     writeWeek(week, (ws) => {
       const newPicks = { ...ws.picks };
-      newPicks[activePlayer] = { ...newPicks[activePlayer] };
-      newPicks[activePlayer][gameId] = { ...newPicks[activePlayer][gameId], team };
+      newPicks[activePlayer] = { ...(newPicks[activePlayer] || {}) };
+      newPicks[activePlayer][gameId] = { ...(newPicks[activePlayer][gameId] || {}), team };
       return { ...ws, picks: newPicks };
     });
     setExpandedConf(gameId);
@@ -198,14 +205,13 @@ export default function App() {
     if (!activePlayer) return;
     writeWeek(week, (ws) => {
       const newPicks = { ...ws.picks };
-      newPicks[activePlayer] = { ...newPicks[activePlayer] };
-      // Swap: clear val from any other game
+      newPicks[activePlayer] = { ...(newPicks[activePlayer] || {}) };
       Object.keys(newPicks[activePlayer]).forEach(gid => {
         if (newPicks[activePlayer][gid]?.confidence === val && String(gid) !== String(gameId)) {
           newPicks[activePlayer][gid] = { ...newPicks[activePlayer][gid], confidence: null };
         }
       });
-      newPicks[activePlayer][gameId] = { ...newPicks[activePlayer][gameId], confidence: val };
+      newPicks[activePlayer][gameId] = { ...(newPicks[activePlayer][gameId] || {}), confidence: val };
       return { ...ws, picks: newPicks };
     });
     setExpandedConf(null);
