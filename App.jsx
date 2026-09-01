@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { db, ref, onValue, set } from "./firebase";
 
 /* ─── DATA ──────────────────────────────────────────────── */
 
@@ -27,32 +28,15 @@ const WEEKS = {
   },
 };
 
-// Generate placeholder weeks 2–18 so the selector is ready.
-// Replace each entry with real game data as the season progresses.
 for (let w = 2; w <= 18; w++) {
-  WEEKS[w] = {
-    label: `Week ${w}`,
-    startDate: null,
-    games: [],
-  };
+  WEEKS[w] = { label: `Week ${w}`, startDate: null, games: [] };
 }
 
 const ALL_WEEK_NUMS = Array.from({ length: 18 }, (_, i) => i + 1);
 const PLAYERS = ["Ryan", "Catherine"];
 const PLAYER_COLORS = { Ryan: "#3b82f6", Catherine: "#e879a0" };
-const STORAGE_KEY = "pickem-pool-v3";
 
-/* ─── PERSISTENCE ───────────────────────────────────────── */
-
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-function save(state) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
-}
+/* ─── HELPERS ───────────────────────────────────────────── */
 
 function defaultWeekState(weekNum) {
   const games = WEEKS[weekNum]?.games || [];
@@ -64,8 +48,6 @@ function defaultWeekState(weekNum) {
   return { picks, winners: {} };
 }
 
-/* ─── HELPERS ───────────────────────────────────────────── */
-
 function weekIsComplete(weekState, weekNum) {
   const games = WEEKS[weekNum]?.games || [];
   if (games.length === 0) return false;
@@ -76,7 +58,7 @@ function weekHasGames(weekNum) {
   return (WEEKS[weekNum]?.games || []).length > 0;
 }
 
-function calcWeekScore(player, weekState, weekNum) {
+function calcWeekScore(player, weekState) {
   let s = 0;
   const winners = weekState?.winners || {};
   const picks = weekState?.picks || {};
@@ -88,7 +70,6 @@ function calcWeekScore(player, weekState, weekNum) {
 }
 
 function detectCurrentWeek() {
-  // Find the latest week with games whose start date is <= today
   const today = new Date().toISOString().slice(0, 10);
   let current = 1;
   ALL_WEEK_NUMS.forEach(w => {
@@ -97,50 +78,60 @@ function detectCurrentWeek() {
   return current;
 }
 
-function getInitialState() {
-  const saved = load();
-  if (saved) return saved;
-  return {
-    viewingWeek: detectCurrentWeek(),
-    weeks: { 1: defaultWeekState(1) },
-    activePlayer: null,
-  };
-}
-
 /* ─── APP ───────────────────────────────────────────────── */
 
 export default function App() {
-  const [state, setState] = useState(getInitialState);
+  const [weekStates, setWeekStates] = useState({});
+  const [viewingWeek, setViewingWeek] = useState(detectCurrentWeek());
+  const [activePlayer, setActivePlayer] = useState(null);
   const [tab, setTab] = useState("picks");
   const [expandedConf, setExpandedConf] = useState(null);
+  const [connected, setConnected] = useState(false);
   const weekStripRef = useRef(null);
 
-  const persist = useCallback((fn) => {
-    setState(prev => {
-      const next = fn(prev);
-      save(next);
-      return next;
+  // Subscribe to Firebase — single listener on the root
+  useEffect(() => {
+    const dbRef = ref(db, "pool");
+    const unsub = onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data?.weeks) {
+        setWeekStates(data.weeks);
+      }
+      setConnected(true);
+    }, (error) => {
+      console.error("Firebase error:", error);
+      setConnected(true); // show app even on error
     });
+    return () => unsub();
   }, []);
 
-  const week = state.viewingWeek;
-  const weekData = state.weeks?.[week] || defaultWeekState(week);
+  // Scroll current week chip into view
+  useEffect(() => {
+    if (weekStripRef.current) {
+      const btn = weekStripRef.current.querySelector(`[data-week="${viewingWeek}"]`);
+      if (btn) btn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [connected]);
+
+  /* ─── Firebase write helpers ─── */
+  const writeWeek = useCallback((weekNum, updater) => {
+    const current = weekStates[weekNum] || defaultWeekState(weekNum);
+    const next = updater(current);
+    // Optimistic local update
+    setWeekStates(prev => ({ ...prev, [weekNum]: next }));
+    // Write to Firebase
+    set(ref(db, `pool/weeks/${weekNum}`), next).catch(console.error);
+  }, [weekStates]);
+
+  /* ─── Derived state ─── */
+  const week = viewingWeek;
+  const weekData = weekStates[week] || defaultWeekState(week);
   const games = WEEKS[week]?.games || [];
   const numGames = games.length;
   const { picks, winners } = weekData;
-  const { activePlayer } = state;
   const currentWeek = detectCurrentWeek();
   const isComplete = weekIsComplete(weekData, week);
 
-  // Scroll current week into view on mount
-  useEffect(() => {
-    if (weekStripRef.current) {
-      const btn = weekStripRef.current.querySelector(`[data-week="${week}"]`);
-      if (btn) btn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-    }
-  }, []);
-
-  /* ─── derived ─── */
   const usedConfidence = (player) => {
     const s = new Set();
     if (!picks[player]) return s;
@@ -148,12 +139,12 @@ export default function App() {
     return s;
   };
 
-  const weekScore = (player) => calcWeekScore(player, weekData, week);
+  const weekScore = (player) => calcWeekScore(player, weekData);
 
   const seasonScore = (player) => {
     let total = 0;
     ALL_WEEK_NUMS.forEach(w => {
-      if (state.weeks?.[w]) total += calcWeekScore(player, state.weeks[w], w);
+      if (weekStates[w]) total += calcWeekScore(player, weekStates[w]);
     });
     return total;
   };
@@ -176,7 +167,7 @@ export default function App() {
   const seasonRecord = (player) => {
     let wins = 0, losses = 0;
     ALL_WEEK_NUMS.forEach(w => {
-      const wd = state.weeks?.[w];
+      const wd = weekStates[w];
       if (!wd) return;
       const wGames = WEEKS[w]?.games || [];
       wGames.forEach(g => {
@@ -191,68 +182,56 @@ export default function App() {
     return { wins, losses };
   };
 
-  /* ─── actions ─── */
-  const setViewWeek = (w) => {
-    persist(s => ({ ...s, viewingWeek: w }));
-    setExpandedConf(null);
-  };
-
-  const setPlayer = (p) => persist(s => ({ ...s, activePlayer: p }));
-
+  /* ─── Actions ─── */
   const pickTeam = (gameId, team) => {
     if (!activePlayer) return;
-    persist(s => {
-      const wd = s.weeks?.[week] || defaultWeekState(week);
-      const ws = { ...wd };
-      ws.picks = { ...ws.picks };
-      ws.picks[activePlayer] = { ...ws.picks[activePlayer] };
-      ws.picks[activePlayer][gameId] = { ...ws.picks[activePlayer][gameId], team };
-      return { ...s, weeks: { ...s.weeks, [week]: ws } };
+    writeWeek(week, (ws) => {
+      const newPicks = { ...ws.picks };
+      newPicks[activePlayer] = { ...newPicks[activePlayer] };
+      newPicks[activePlayer][gameId] = { ...newPicks[activePlayer][gameId], team };
+      return { ...ws, picks: newPicks };
     });
     setExpandedConf(gameId);
   };
 
   const pickConfidence = (gameId, val) => {
     if (!activePlayer) return;
-    persist(s => {
-      const wd = s.weeks?.[week] || defaultWeekState(week);
-      const ws = { ...wd };
-      ws.picks = { ...ws.picks };
-      ws.picks[activePlayer] = { ...ws.picks[activePlayer] };
-      Object.keys(ws.picks[activePlayer]).forEach(gid => {
-        if (ws.picks[activePlayer][gid].confidence === val && String(gid) !== String(gameId)) {
-          ws.picks[activePlayer][gid] = { ...ws.picks[activePlayer][gid], confidence: null };
+    writeWeek(week, (ws) => {
+      const newPicks = { ...ws.picks };
+      newPicks[activePlayer] = { ...newPicks[activePlayer] };
+      // Swap: clear val from any other game
+      Object.keys(newPicks[activePlayer]).forEach(gid => {
+        if (newPicks[activePlayer][gid]?.confidence === val && String(gid) !== String(gameId)) {
+          newPicks[activePlayer][gid] = { ...newPicks[activePlayer][gid], confidence: null };
         }
       });
-      ws.picks[activePlayer][gameId] = { ...ws.picks[activePlayer][gameId], confidence: val };
-      return { ...s, weeks: { ...s.weeks, [week]: ws } };
+      newPicks[activePlayer][gameId] = { ...newPicks[activePlayer][gameId], confidence: val };
+      return { ...ws, picks: newPicks };
     });
     setExpandedConf(null);
   };
 
   const setWinner = (gameId, team) => {
-    persist(s => {
-      const wd = s.weeks?.[week] || defaultWeekState(week);
-      const ws = { ...wd, winners: { ...wd.winners, [gameId]: team } };
-      return { ...s, weeks: { ...s.weeks, [week]: ws } };
-    });
+    writeWeek(week, (ws) => ({
+      ...ws,
+      winners: { ...ws.winners, [gameId]: team },
+    }));
   };
 
   const clearWinner = (gameId) => {
-    persist(s => {
-      const wd = s.weeks?.[week] || defaultWeekState(week);
-      const ws = { ...wd, winners: { ...wd.winners } };
-      delete ws.winners[gameId];
-      return { ...s, weeks: { ...s.weeks, [week]: ws } };
+    writeWeek(week, (ws) => {
+      const w = { ...ws.winners };
+      delete w[gameId];
+      return { ...ws, winners: w };
     });
   };
 
   const resetWeek = () => {
     if (!window.confirm(`Reset ALL picks and results for Week ${week}?`)) return;
-    persist(s => ({ ...s, weeks: { ...s.weeks, [week]: defaultWeekState(week) } }));
+    writeWeek(week, () => defaultWeekState(week));
   };
 
-  /* grouping by day */
+  /* ─── Grouping ─── */
   const grouped = [];
   let lastDay = null;
   games.forEach(g => {
@@ -266,6 +245,16 @@ export default function App() {
   const cathSeason = seasonScore("Catherine");
   const gamesDecided = Object.keys(winners).length;
   const usedSet = usedConfidence(activePlayer);
+
+  if (!connected) {
+    return (
+      <div className="app" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", flexDirection: "column" }}>
+        <style>{componentCSS}</style>
+        <div style={{ width: 32, height: 32, border: "3px solid #1e293b", borderTopColor: "#3b82f6", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ color: "#5a6b80", marginTop: 12, fontSize: 14 }}>Connecting...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -298,14 +287,13 @@ export default function App() {
         <div className="week-strip" ref={weekStripRef}>
           {ALL_WEEK_NUMS.map(w => {
             const hasGames = weekHasGames(w);
-            const wd = state.weeks?.[w];
+            const wd = weekStates[w];
             const done = wd && weekIsComplete(wd, w);
             const isCurrent = w === currentWeek;
-            const isViewing = w === week;
+            const isViewing = w === viewingWeek;
             return (
               <button
-                key={w}
-                data-week={w}
+                key={w} data-week={w}
                 className={[
                   "week-chip",
                   isViewing ? "viewing" : "",
@@ -313,7 +301,7 @@ export default function App() {
                   done ? "done" : "",
                   !hasGames ? "empty" : "",
                 ].filter(Boolean).join(" ")}
-                onClick={() => setViewWeek(w)}
+                onClick={() => { setViewingWeek(w); setExpandedConf(null); }}
               >
                 <span className="wc-num">{w}</span>
                 {done && <span className="wc-check">✓</span>}
@@ -348,12 +336,11 @@ export default function App() {
         ))}
       </nav>
 
-      {/* ── NO GAMES STATE ── */}
+      {/* ── NO GAMES ── */}
       {numGames === 0 && tab !== "results" && (
         <div className="empty">
           <p className="empty-icon">📅</p>
           <p>No games loaded for {WEEKS[week].label} yet.</p>
-          <p style={{ fontSize: 12, marginTop: 4 }}>Add game data to the WEEKS object in App.jsx.</p>
         </div>
       )}
 
@@ -364,14 +351,11 @@ export default function App() {
             <span className="player-bar-label">Picking as:</span>
             <div className="player-btns">
               {PLAYERS.map(p => (
-                <button
-                  key={p}
+                <button key={p}
                   className={`player-btn ${activePlayer === p ? "selected" : ""}`}
                   style={activePlayer === p ? { background: PLAYER_COLORS[p], borderColor: PLAYER_COLORS[p] } : {}}
-                  onClick={() => setPlayer(p)}
-                >
-                  {p}
-                </button>
+                  onClick={() => setActivePlayer(p)}
+                >{p}</button>
               ))}
             </div>
             {activePlayer && (
@@ -425,14 +409,15 @@ export default function App() {
                     )}
                     {showConf && (
                       <div className="conf-picker">
-                        <p className="conf-picker-label">Assign confidence (1–{numGames})</p>
+                        <p className="conf-picker-label">Assign confidence (1–{numGames}) · <span style={{color:"#6ee7a0"}}>open</span> · <span style={{color:"#4a5e74"}}>swap from another game</span></p>
                         <div className="conf-grid">
                           {Array.from({ length: numGames }, (_, i) => i + 1).map(v => {
                             const isUsed = usedSet.has(v) && pick.confidence !== v;
                             const isCurrent = pick.confidence === v;
+                            const isAvailable = !isUsed && !isCurrent;
                             return (
-                              <button key={v} disabled={isUsed}
-                                className={`conf-btn ${isUsed ? "used" : ""} ${isCurrent ? "current" : ""}`}
+                              <button key={v}
+                                className={`conf-btn ${isUsed ? "used" : ""} ${isCurrent ? "current" : ""} ${isAvailable ? "available" : ""}`}
                                 onClick={() => pickConfidence(g.id, v)}
                               >{v}</button>
                             );
@@ -456,7 +441,6 @@ export default function App() {
       {/* ───────────── RESULTS TAB ───────────── */}
       {tab === "results" && (
         <div className="pane">
-          {/* Season overview */}
           <div className="season-overview">
             <h3 className="so-title">Season Totals</h3>
             <div className="big-scores">
@@ -475,7 +459,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Week-by-week breakdown */}
           <div className="week-breakdown">
             <h3 className="wb-title">Week-by-Week</h3>
             <div className="wb-table">
@@ -487,28 +470,25 @@ export default function App() {
               </div>
               {ALL_WEEK_NUMS.map(w => {
                 if (!weekHasGames(w)) return null;
-                const wd = state.weeks?.[w] || defaultWeekState(w);
-                const r = calcWeekScore("Ryan", wd, w);
-                const c = calcWeekScore("Catherine", wd, w);
+                const wd = weekStates[w] || defaultWeekState(w);
+                const r = calcWeekScore("Ryan", wd);
+                const c = calcWeekScore("Catherine", wd);
                 const done = weekIsComplete(wd, w);
                 const wWinners = Object.keys(wd.winners || {}).length;
                 const wGames = WEEKS[w].games.length;
-                const isViewing = w === week;
+                const isViewing = w === viewingWeek;
                 return (
-                  <div key={w} className={`wb-row ${isViewing ? "wb-viewing" : ""}`} onClick={() => { setViewWeek(w); setTab("picks"); }}>
+                  <div key={w} className={`wb-row ${isViewing ? "wb-viewing" : ""}`} onClick={() => { setViewingWeek(w); setTab("picks"); }}>
                     <span className="wb-col-wk">{w}</span>
                     <span className="wb-col-pl" style={{ color: r >= c && (r > 0 || c > 0) ? PLAYER_COLORS.Ryan : "#5a6b80", fontWeight: r > c ? 800 : 400 }}>{r}</span>
                     <span className="wb-col-pl" style={{ color: c >= r && (r > 0 || c > 0) ? PLAYER_COLORS.Catherine : "#5a6b80", fontWeight: c > r ? 800 : 400 }}>{c}</span>
-                    <span className={`wb-col-st ${done ? "st-done" : ""}`}>
-                      {done ? "✓ Final" : `${wWinners}/${wGames}`}
-                    </span>
+                    <span className={`wb-col-st ${done ? "st-done" : ""}`}>{done ? "✓ Final" : `${wWinners}/${wGames}`}</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Current week detail */}
           {numGames > 0 && (
             <>
               <h3 className="detail-title">{WEEKS[week].label} Detail</h3>
@@ -592,7 +572,6 @@ const componentCSS = `
     background: #0f1623;
   }
 
-  /* Header */
   .header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 16px 18px 14px;
@@ -609,22 +588,16 @@ const componentCSS = `
   .sp-num { display: block; font-size: 22px; font-weight: 900; line-height: 1.1; }
   .sp-dash { font-size: 12px; color: #3a4658; font-weight: 700; }
 
-  /* Week strip */
   .week-strip-wrap {
-    background: #121b2b;
-    border-bottom: 1px solid #1c2840;
-    position: relative;
+    background: #121b2b; border-bottom: 1px solid #1c2840; position: relative;
   }
   .week-strip-wrap::after {
-    content: '';
-    position: absolute; right: 0; top: 0; bottom: 0; width: 32px;
-    background: linear-gradient(90deg, transparent, #121b2b);
-    pointer-events: none; z-index: 1;
+    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 32px;
+    background: linear-gradient(90deg, transparent, #121b2b); pointer-events: none; z-index: 1;
   }
   .week-strip {
     display: flex; gap: 4px; padding: 10px 12px;
-    overflow-x: auto; scrollbar-width: none;
-    -ms-overflow-style: none;
+    overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
   }
   .week-strip::-webkit-scrollbar { display: none; }
   .week-chip {
@@ -632,44 +605,25 @@ const componentCSS = `
     justify-content: center; position: relative;
     width: 42px; height: 42px; border-radius: 10px;
     border: 1.5px solid #1f3050; background: #172035;
-    color: #5a6b80; font-size: 12px; font-weight: 600;
-    transition: all 0.15s;
+    color: #5a6b80; font-size: 12px; font-weight: 600; transition: all 0.15s;
   }
   .week-chip:hover { border-color: #2d4a6a; }
   .week-chip.viewing {
-    background: #3b82f6; color: #fff;
-    border-color: #3b82f6; font-weight: 800;
+    background: #3b82f6; color: #fff; border-color: #3b82f6; font-weight: 800;
     box-shadow: 0 0 12px rgba(59,130,246,0.3);
   }
-  .week-chip.current {
-    border-color: #f59e0b;
-  }
-  .week-chip.done {
-    border-color: #166534;
-  }
-  .week-chip.done:not(.viewing) {
-    background: rgba(34,197,94,0.08);
-  }
-  .week-chip.empty:not(.viewing) {
-    opacity: 0.35;
-  }
+  .week-chip.current { border-color: #f59e0b; }
+  .week-chip.done { border-color: #166534; }
+  .week-chip.done:not(.viewing) { background: rgba(34,197,94,0.08); }
+  .week-chip.empty:not(.viewing) { opacity: 0.35; }
   .wc-num { line-height: 1; }
-  .wc-check {
-    font-size: 8px; color: #22c55e; line-height: 1;
-    margin-top: 1px;
-  }
+  .wc-check { font-size: 8px; color: #22c55e; line-height: 1; margin-top: 1px; }
   .week-chip.viewing .wc-check { color: #bbf7d0; }
-  .wc-dot {
-    width: 4px; height: 4px; border-radius: 50%;
-    background: #f59e0b; margin-top: 2px;
-  }
+  .wc-dot { width: 4px; height: 4px; border-radius: 50%; background: #f59e0b; margin-top: 2px; }
 
-  /* Week header bar */
   .week-header-bar {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 18px;
-    background: #0f1623;
-    border-bottom: 1px solid #1c2840;
+    padding: 10px 18px; background: #0f1623; border-bottom: 1px solid #1c2840;
   }
   .whb-left { display: flex; align-items: center; gap: 8px; }
   .whb-label { font-size: 15px; font-weight: 800; color: #f0f4f8; }
@@ -683,19 +637,16 @@ const componentCSS = `
   .whb-week-scores { display: flex; align-items: center; gap: 6px; font-size: 18px; }
   .whb-sep { color: #3a4658; font-size: 14px; font-weight: 500; }
 
-  /* Tabs */
   .tabs { display: flex; background: #121b2b; border-bottom: 1px solid #1c2840; }
   .tab {
     flex: 1; padding: 11px 0; text-align: center;
     background: none; border: none;
     font-size: 13px; font-weight: 600; color: #5a6b80;
-    border-bottom: 2.5px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
+    border-bottom: 2.5px solid transparent; transition: color 0.15s, border-color 0.15s;
   }
   .tab:hover { color: #8b97a8; }
   .tab.active { color: #f0f4f8; border-bottom-color: #3b82f6; }
 
-  /* Player bar */
   .player-bar {
     display: flex; align-items: center; gap: 10px;
     padding: 14px 16px; border-bottom: 1px solid #1c2840; flex-wrap: wrap;
@@ -771,8 +722,21 @@ const componentCSS = `
     border: 1.5px solid #253350; background: #172035;
     color: #c5d0de; font-size: 13px; font-weight: 700; transition: all 0.12s;
   }
-  .conf-btn:not(:disabled):hover { background: #1e3050; border-color: #3b82f6; }
-  .conf-btn.used { opacity: 0.2; background: #0a0f1a; color: #3a4658; }
+  .conf-btn:hover { background: #1e3050; border-color: #3b82f6; }
+  .conf-btn.available {
+    background: rgba(34,197,94,0.06); border-color: #1a4a2e; color: #6ee7a0;
+  }
+  .conf-btn.available:hover {
+    background: rgba(34,197,94,0.15); border-color: #22c55e;
+  }
+  .conf-btn.used {
+    opacity: 0.45; background: #0f1520; color: #4a5e74;
+    border-color: #1a2535; border-style: dashed;
+  }
+  .conf-btn.used:hover {
+    opacity: 0.75; background: #1a2535; border-color: #f59e0b;
+    color: #f59e0b; border-style: solid;
+  }
   .conf-btn.current { background: #3b82f6; color: #fff; border-color: #3b82f6; }
 
   .pick-prompt { margin-top: 8px; font-size: 12px; color: #3a4658; text-align: center; }
@@ -783,7 +747,6 @@ const componentCSS = `
   }
   .assign-btn:hover { background: rgba(59,130,246,0.15); }
 
-  /* Results - season overview */
   .season-overview { padding: 16px 16px 8px; }
   .so-title { font-size: 13px; font-weight: 700; color: #5a6b80; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
   .big-scores { display: flex; gap: 12px; }
@@ -797,7 +760,6 @@ const componentCSS = `
   .big-num { font-size: 44px; font-weight: 900; margin: 4px 0; line-height: 1; }
   .big-record { font-size: 13px; color: #5a6b80; font-weight: 600; margin-top: 4px; }
 
-  /* Week breakdown table */
   .week-breakdown { padding: 12px 16px; }
   .wb-title { font-size: 13px; font-weight: 700; color: #5a6b80; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
   .wb-table { border-radius: 10px; overflow: hidden; border: 1px solid #1f3050; }
@@ -820,7 +782,6 @@ const componentCSS = `
   .wb-col-st { flex: 1; text-align: right; font-size: 11px; color: #5a6b80; font-weight: 600; }
   .wb-col-st.st-done { color: #22c55e; }
 
-  /* Detail */
   .detail-title { padding: 16px 16px 8px; font-size: 13px; font-weight: 700; color: #5a6b80; text-transform: uppercase; letter-spacing: 0.04em; }
   .results-table { margin: 0 12px 24px; border-radius: 12px; overflow: hidden; border: 1px solid #1f3050; }
   .results-head {
