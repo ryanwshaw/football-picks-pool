@@ -70,9 +70,31 @@ const WEEKS = {
       { id: 16, away: "Eagles", home: "Bears", spread: "PHI -3.5", day: "Mon 9/28", time: "8:15 PM", tv: "ESPN" },
     ],
   },
+  4: {
+    label: "Week 4",
+    startDate: "2026-10-01",
+    games: [
+      { id: 1, away: "Steelers", home: "Browns", spread: "PIT -2.5", day: "Thu 10/1", time: "8:15 PM", tv: "Prime" },
+      { id: 2, away: "Colts", home: "Commanders", spread: "IND -3.5", day: "Sun 10/4", time: "9:30 AM (London)", tv: "NFLN" },
+      { id: 3, away: "Cardinals", home: "Giants", spread: "ARI -1.5", day: "Sun 10/4", time: "1:00 PM", tv: "FOX" },
+      { id: 4, away: "Cowboys", home: "Texans", spread: "HOU -2.5", day: "Sun 10/4", time: "1:00 PM", tv: "FOX" },
+      { id: 5, away: "Packers", home: "Buccaneers", spread: "GB -4", day: "Sun 10/4", time: "1:00 PM", tv: "FOX" },
+      { id: 6, away: "Jaguars", home: "Bengals", spread: "CIN -2.5", day: "Sun 10/4", time: "1:00 PM", tv: "CBS" },
+      { id: 7, away: "Rams", home: "Eagles", spread: "LAR -3", day: "Sun 10/4", time: "1:00 PM", tv: "FOX" },
+      { id: 8, away: "Patriots", home: "Bills", spread: "BUF -6.5", day: "Sun 10/4", time: "1:00 PM", tv: "CBS" },
+      { id: 9, away: "Jets", home: "Bears", spread: "CHI -3.5", day: "Sun 10/4", time: "1:00 PM", tv: "CBS" },
+      { id: 10, away: "Titans", home: "Ravens", spread: "BAL -11.5", day: "Sun 10/4", time: "1:00 PM", tv: "CBS" },
+      { id: 11, away: "Dolphins", home: "Vikings", spread: "MIN -10.5", day: "Sun 10/4", time: "1:00 PM", tv: "CBS" },
+      { id: 12, away: "Lions", home: "Panthers", spread: "DET -3.5", day: "Sun 10/4", time: "1:00 PM", tv: "FOX" },
+      { id: 13, away: "Broncos", home: "49ers", spread: "SF -2.5", day: "Sun 10/4", time: "4:05 PM", tv: "CBS" },
+      { id: 14, away: "Chargers", home: "Seahawks", spread: "SEA -7", day: "Sun 10/4", time: "4:25 PM", tv: "FOX" },
+      { id: 15, away: "Chiefs", home: "Raiders", spread: "KC -4.5", day: "Sun 10/4", time: "8:20 PM", tv: "NBC" },
+      { id: 16, away: "Falcons", home: "Saints", spread: "NO -2.5", day: "Mon 10/5", time: "8:15 PM", tv: "ESPN" },
+    ],
+  },
 };
 
-for (let w = 4; w <= 18; w++) {
+for (let w = 5; w <= 18; w++) {
   WEEKS[w] = { label: `Week ${w}`, startDate: null, games: [] };
 }
 
