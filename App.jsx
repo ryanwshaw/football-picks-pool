@@ -133,9 +133,29 @@ const WEEKS = {
       { id: 14, away: "Commanders", home: "49ers", spread: "SF -7.5", day: "Mon 10/19", time: "8:15 PM", tv: "ESPN" },
     ],
   },
+  7: {
+    label: "Week 7",
+    startDate: "2026-10-22",
+    games: [
+      { id: 1, away: "Patriots", home: "Bears", spread: "CHI -2.5", day: "Thu 10/22", time: "8:15 PM", tv: "Prime" },
+      { id: 2, away: "Steelers", home: "Saints", spread: "PIT -2.5", day: "Sun 10/25", time: "9:30 AM (Paris)", tv: "NFLN" },
+      { id: 3, away: "Colts", home: "Vikings", spread: "MIN -6", day: "Sun 10/25", time: "1:00 PM", tv: "CBS" },
+      { id: 4, away: "Bengals", home: "Ravens", spread: "BAL -3", day: "Sun 10/25", time: "1:00 PM", tv: "CBS" },
+      { id: 5, away: "Giants", home: "Texans", spread: "HOU -9.5", day: "Sun 10/25", time: "1:00 PM", tv: "FOX" },
+      { id: 6, away: "Dolphins", home: "Jets", spread: "NYJ -4.5", day: "Sun 10/25", time: "1:00 PM", tv: "CBS" },
+      { id: 7, away: "Browns", home: "Titans", spread: "CLE -1.5", day: "Sun 10/25", time: "1:00 PM", tv: "CBS" },
+      { id: 8, away: "49ers", home: "Falcons", spread: "SF -4.5", day: "Sun 10/25", time: "1:00 PM", tv: "FOX" },
+      { id: 9, away: "Buccaneers", home: "Panthers", spread: "CAR -3", day: "Sun 10/25", time: "1:00 PM", tv: "FOX" },
+      { id: 10, away: "Broncos", home: "Cardinals", spread: "DEN -4.5", day: "Sun 10/25", time: "4:05 PM", tv: "CBS" },
+      { id: 11, away: "Packers", home: "Lions", spread: "DET -3", day: "Sun 10/25", time: "4:25 PM", tv: "FOX" },
+      { id: 12, away: "Rams", home: "Raiders", spread: "LAR -5.5", day: "Sun 10/25", time: "4:25 PM", tv: "FOX" },
+      { id: 13, away: "Chiefs", home: "Seahawks", spread: "SEA -2.5", day: "Sun 10/25", time: "8:20 PM", tv: "NBC" },
+      { id: 14, away: "Cowboys", home: "Eagles", spread: "DAL -5.5", day: "Mon 10/26", time: "8:15 PM", tv: "ESPN" },
+    ],
+  },
 };
 
-for (let w = 7; w <= 18; w++) {
+for (let w = 8; w <= 18; w++) {
   WEEKS[w] = { label: `Week ${w}`, startDate: null, games: [] };
 }
 
