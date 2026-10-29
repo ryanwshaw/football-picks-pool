@@ -153,9 +153,29 @@ const WEEKS = {
       { id: 14, away: "Cowboys", home: "Eagles", spread: "DAL -5.5", day: "Mon 10/26", time: "8:15 PM", tv: "ESPN" },
     ],
   },
+  8: {
+    label: "Week 8",
+    startDate: "2026-10-29",
+    games: [
+      { id: 1, away: "Panthers", home: "Packers", spread: "GB -3.5", day: "Thu 10/29", time: "8:15 PM", tv: "Prime" },
+      { id: 2, away: "Titans", home: "Bengals", spread: "CIN -10.5", day: "Sun 11/1", time: "1:00 PM", tv: "CBS" },
+      { id: 3, away: "Ravens", home: "Bills", spread: "BUF -3.5", day: "Sun 11/1", time: "1:00 PM", tv: "CBS" },
+      { id: 4, away: "Cardinals", home: "Cowboys", spread: "DAL -6.5", day: "Sun 11/1", time: "1:00 PM", tv: "FOX" },
+      { id: 5, away: "Browns", home: "Steelers", spread: "PIT -3.5", day: "Sun 11/1", time: "1:00 PM", tv: "CBS" },
+      { id: 6, away: "Colts", home: "Jaguars", spread: "JAX -7.5", day: "Sun 11/1", time: "1:00 PM", tv: "CBS" },
+      { id: 7, away: "Vikings", home: "Lions", spread: "DET -3", day: "Sun 11/1", time: "1:00 PM", tv: "FOX" },
+      { id: 8, away: "Falcons", home: "Buccaneers", spread: "TB -1.5", day: "Sun 11/1", time: "1:00 PM", tv: "FOX" },
+      { id: 9, away: "Raiders", home: "Jets", spread: "NYJ -1.5", day: "Sun 11/1", time: "1:00 PM", tv: "CBS" },
+      { id: 10, away: "Patriots", home: "Dolphins", spread: "NE -7.5", day: "Sun 11/1", time: "1:00 PM", tv: "CBS" },
+      { id: 11, away: "Chargers", home: "Rams", spread: "LAR -7", day: "Sun 11/1", time: "4:05 PM", tv: "FOX" },
+      { id: 12, away: "Chiefs", home: "Broncos", spread: "KC -1.5", day: "Sun 11/1", time: "4:25 PM", tv: "CBS" },
+      { id: 13, away: "Eagles", home: "Commanders", spread: "WAS -3.5", day: "Sun 11/1", time: "8:20 PM", tv: "NBC" },
+      { id: 14, away: "Bears", home: "Seahawks", spread: "SEA -3", day: "Mon 11/2", time: "8:15 PM", tv: "ESPN" },
+    ],
+  },
 };
 
-for (let w = 8; w <= 18; w++) {
+for (let w = 9; w <= 18; w++) {
   WEEKS[w] = { label: `Week ${w}`, startDate: null, games: [] };
 }
 
