@@ -173,9 +173,30 @@ const WEEKS = {
       { id: 14, away: "Bears", home: "Seahawks", spread: "SEA -3", day: "Mon 11/2", time: "8:15 PM", tv: "ESPN" },
     ],
   },
+  9: {
+    label: "Week 9",
+    startDate: "2026-11-05",
+    games: [
+      { id: 1, away: "Jaguars", home: "Ravens", spread: "JAX -7.5", day: "Thu 11/5", time: "8:15 PM", tv: "Prime" },
+      { id: 2, away: "Bengals", home: "Falcons", spread: "CIN -3.5", day: "Sun 11/8", time: "9:30 AM (Madrid)", tv: "NFLN" },
+      { id: 3, away: "Broncos", home: "Panthers", spread: "DEN -2.5", day: "Sun 11/8", time: "1:00 PM", tv: "CBS" },
+      { id: 4, away: "Giants", home: "Eagles", spread: "NYG -2.5", day: "Sun 11/8", time: "1:00 PM", tv: "FOX" },
+      { id: 5, away: "Browns", home: "Saints", spread: "NO -2.5", day: "Sun 11/8", time: "1:00 PM", tv: "CBS" },
+      { id: 6, away: "Cowboys", home: "Colts", spread: "DAL -5.5", day: "Sun 11/8", time: "1:00 PM", tv: "FOX" },
+      { id: 7, away: "Lions", home: "Dolphins", spread: "DET -7", day: "Sun 11/8", time: "1:00 PM", tv: "FOX" },
+      { id: 8, away: "Rams", home: "Commanders", spread: "LAR -5.5", day: "Sun 11/8", time: "1:00 PM", tv: "FOX" },
+      { id: 9, away: "Jets", home: "Chiefs", spread: "KC -10", day: "Sun 11/8", time: "1:00 PM", tv: "CBS" },
+      { id: 10, away: "Texans", home: "Chargers", spread: "HOU -3.5", day: "Sun 11/8", time: "4:05 PM", tv: "CBS" },
+      { id: 11, away: "Raiders", home: "49ers", spread: "SF -8.5", day: "Sun 11/8", time: "4:05 PM", tv: "CBS" },
+      { id: 12, away: "Cardinals", home: "Seahawks", spread: "SEA -11.5", day: "Sun 11/8", time: "4:25 PM", tv: "FOX" },
+      { id: 13, away: "Packers", home: "Patriots", spread: "NE -2.5", day: "Sun 11/8", time: "4:25 PM", tv: "FOX" },
+      { id: 14, away: "Buccaneers", home: "Bears", spread: "CHI -6", day: "Sun 11/8", time: "8:20 PM", tv: "NBC" },
+      { id: 15, away: "Bills", home: "Vikings", spread: "BUF -3", day: "Mon 11/9", time: "8:15 PM", tv: "ESPN" },
+    ],
+  },
 };
 
-for (let w = 9; w <= 18; w++) {
+for (let w = 10; w <= 18; w++) {
   WEEKS[w] = { label: `Week ${w}`, startDate: null, games: [] };
 }
 
