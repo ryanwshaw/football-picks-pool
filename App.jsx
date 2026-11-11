@@ -440,8 +440,24 @@ export default function App() {
   };
 
   /* ─── Actions ─── */
+  const clearPick = (gameId) => {
+    if (!activePlayer) return;
+    writeWeek(week, (ws) => {
+      const newPicks = { ...ws.picks };
+      newPicks[activePlayer] = { ...(newPicks[activePlayer] || {}) };
+      newPicks[activePlayer][gameId] = { team: null, confidence: null };
+      return { ...ws, picks: newPicks };
+    });
+    setExpandedConf(null);
+  };
+
   const pickTeam = (gameId, team) => {
     if (!activePlayer) return;
+    // Tapping the team that's already picked clears the pick entirely
+    if (picks[activePlayer]?.[gameId]?.team === team) {
+      clearPick(gameId);
+      return;
+    }
     writeWeek(week, (ws) => {
       const newPicks = { ...ws.picks };
       newPicks[activePlayer] = { ...(newPicks[activePlayer] || {}) };
@@ -687,11 +703,15 @@ export default function App() {
                         <span className="conf-number">{pick.confidence}</span>
                         <span className="conf-pts">pts</span>
                         {!locked && <button className="edit-link" onClick={() => setExpandedConf(g.id)}>change</button>}
+                        {!locked && <button className="edit-link clear-link" onClick={() => clearPick(g.id)}>clear</button>}
                       </div>
                     )}
                     {showConf && (
                       <div className="conf-picker">
-                        <p className="conf-picker-label">Assign confidence (1–{numGames}) · <span style={{color:"#6ee7a0"}}>open</span> · <span style={{color:"#4a5e74"}}>swap from another game</span></p>
+                        <div className="conf-picker-head">
+                          <p className="conf-picker-label">Assign confidence (1–{numGames}) · <span style={{color:"#6ee7a0"}}>open</span> · <span style={{color:"#4a5e74"}}>swap from another game</span></p>
+                          <button className="edit-link clear-link" onClick={() => clearPick(g.id)}>clear pick</button>
+                        </div>
                         <div className="conf-grid">
                           {Array.from({ length: numGames }, (_, i) => i + 1).map(v => {
                             const isUsed = usedSet.has(v) && pick.confidence !== v;
@@ -998,6 +1018,11 @@ const componentCSS = `
     animation: slideUp 0.15s ease;
   }
   .conf-picker-label { font-size: 11px; color: #5a6b80; font-weight: 500; margin-bottom: 8px; }
+  .conf-picker-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .conf-picker-head .clear-link { margin-left: 0; flex-shrink: 0; }
+  .conf-display .clear-link { margin-left: 10px; }
+  .clear-link { color: #b45a5a; }
+  .clear-link:hover { color: #ef4444; }
   .conf-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
   .conf-btn {
     padding: 9px 0; border-radius: 6px;
