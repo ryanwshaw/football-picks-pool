@@ -224,6 +224,66 @@ const ALL_WEEK_NUMS = Array.from({ length: 18 }, (_, i) => i + 1);
 const PLAYERS = ["Ryan", "Catherine"];
 const PLAYER_COLORS = { Ryan: "#3b82f6", Catherine: "#e879a0" };
 
+// Teasing messages shown when Catherine locks in a pick
+const DOUBT_MESSAGES = [
+  "Are you sure about that? 🤔",
+  "Wow. That's bold.",
+  "Risky decision.",
+  "Interesting choice...",
+  "Ryan is going to love this one 😏",
+  "Bold strategy. Let's see if it pays off.",
+  "Are you *really* sure?",
+  "Hmm. Okay. If you say so.",
+  "That's... a choice.",
+  "Living dangerously, I see.",
+  "Brave. Very brave.",
+  "Did you flip a coin on that one?",
+  "The experts would disagree. But okay.",
+  "Gutsy call.",
+  "Ryan just smiled. That can't be good.",
+  "Fortune favors the bold. Sometimes.",
+];
+
+// Extra-spicy messages when she puts big points on a game
+const BIG_BET_MESSAGES = [
+  "That many points?! Wow, that's bold.",
+  "Putting the house on this one, huh?",
+  "Big confidence. Hope it's earned 👀",
+  "No going back now... (well, you can hit change)",
+  "Ryan is taking notes on this one.",
+];
+
+// Messages when she picks the underdog
+const UNDERDOG_MESSAGES = [
+  "Taking the underdog? Risky decision.",
+  "The upset special! Are you sure about that?",
+  "Vegas disagrees with you. Just saying.",
+  "Ooh, picking against the spread favorite. Spicy.",
+];
+
+function pickMessage(list, last) {
+  const options = list.filter(m => m !== last);
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+// Spread strings look like "SEA -3.5"; returns true if `team` is the underdog
+const TEAM_ABBR = {
+  "49ers": "SF", Bears: "CHI", Bengals: "CIN", Bills: "BUF", Broncos: "DEN",
+  Browns: "CLE", Buccaneers: "TB", Cardinals: "ARI", Chargers: "LAC", Chiefs: "KC",
+  Colts: "IND", Commanders: "WAS", Cowboys: "DAL", Dolphins: "MIA", Eagles: "PHI",
+  Falcons: "ATL", Giants: "NYG", Jaguars: "JAX", Jets: "NYJ", Lions: "DET",
+  Packers: "GB", Panthers: "CAR", Patriots: "NE", Raiders: ["LV", "LVR"], Rams: "LAR",
+  Ravens: "BAL", Saints: "NO", Seahawks: "SEA", Steelers: "PIT", Texans: "HOU",
+  Titans: "TEN", Vikings: "MIN",
+};
+
+function isUnderdog(game, team) {
+  const fav = (game.spread || "").split(" ")[0];
+  const abbr = TEAM_ABBR[team];
+  const abbrs = Array.isArray(abbr) ? abbr : [abbr];
+  return fav !== "" && !abbrs.includes(fav);
+}
+
 /* ─── HELPERS ───────────────────────────────────────────── */
 
 function defaultWeekState(weekNum) {
@@ -276,6 +336,8 @@ export default function App() {
   const [tab, setTab] = useState("picks");
   const [expandedConf, setExpandedConf] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [doubtPopup, setDoubtPopup] = useState(null); // { message, team, points }
+  const lastMessageRef = useRef(null);
   const weekStripRef = useRef(null);
 
   // Subscribe to Firebase — single listener on the root
@@ -403,6 +465,17 @@ export default function App() {
       return { ...ws, picks: newPicks };
     });
     setExpandedConf(null);
+
+    if (activePlayer === "Catherine") {
+      const game = games.find(g => g.id === gameId);
+      const team = picks.Catherine?.[gameId]?.team;
+      let list = DOUBT_MESSAGES;
+      if (val >= numGames - 2) list = BIG_BET_MESSAGES;
+      else if (game && team && isUnderdog(game, team) && Math.random() < 0.6) list = UNDERDOG_MESSAGES;
+      const message = pickMessage(list, lastMessageRef.current);
+      lastMessageRef.current = message;
+      setDoubtPopup({ message, team, points: val });
+    }
   };
 
   const setWinner = (gameId, team) => {
@@ -453,6 +526,21 @@ export default function App() {
   return (
     <div className="app">
       <style>{componentCSS}</style>
+
+      {doubtPopup && (
+        <div className="doubt-overlay" onClick={() => setDoubtPopup(null)}>
+          <div className="doubt-modal" onClick={e => e.stopPropagation()}>
+            <p className="doubt-emoji">🤨</p>
+            <p className="doubt-message">{doubtPopup.message}</p>
+            {doubtPopup.team && (
+              <p className="doubt-detail">{doubtPopup.team} for {doubtPopup.points} pts</p>
+            )}
+            <button className="doubt-btn" onClick={() => setDoubtPopup(null)}>
+              I'm sure 💅
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── HEADER ── */}
       <header className="header">
@@ -1015,6 +1103,32 @@ const componentCSS = `
   .reset-btn:hover { background: rgba(220,38,38,0.18); }
 
   .pane { padding-bottom: 20px; }
+
+  .doubt-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(5, 8, 15, 0.7);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; animation: fadeIn 0.15s ease;
+  }
+  .doubt-modal {
+    background: #172035; border: 2px solid #e879a0; border-radius: 16px;
+    padding: 24px 22px 20px; max-width: 320px; width: 100%;
+    text-align: center; animation: doubtPop 0.25s cubic-bezier(.2,1.4,.5,1);
+    box-shadow: 0 12px 40px rgba(232,121,160,0.25);
+  }
+  .doubt-emoji { font-size: 40px; margin-bottom: 6px; }
+  .doubt-message { font-size: 18px; font-weight: 800; color: #f0f4f8; line-height: 1.3; }
+  .doubt-detail { font-size: 12px; color: #8b97a8; margin-top: 6px; }
+  .doubt-btn {
+    margin-top: 18px; width: 100%; padding: 11px 0; border-radius: 10px;
+    border: none; background: #e879a0; color: #fff;
+    font-size: 14px; font-weight: 800;
+  }
+  .doubt-btn:hover { background: #f093b5; }
+  @keyframes doubtPop {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
 
   @media (max-width: 480px) {
     .conf-grid { grid-template-columns: repeat(4, 1fr); }
