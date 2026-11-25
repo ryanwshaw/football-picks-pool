@@ -233,9 +233,31 @@ const WEEKS = {
       { id: 13, away: "Bengals", home: "Commanders", spread: "CIN -3.5", day: "Mon 11/23", time: "8:15 PM", tv: "ESPN" },
     ],
   },
+  12: {
+    label: "Week 12",
+    startDate: "2026-11-25",
+    games: [
+      { id: 1, away: "Packers", home: "Rams", spread: "LAR -2.5", day: "Wed 11/25", time: "8:00 PM", tv: "Netflix" },
+      { id: 2, away: "Bears", home: "Lions", spread: "CHI -2.5", day: "Thu 11/26", time: "1:00 PM", tv: "CBS" },
+      { id: 3, away: "Eagles", home: "Cowboys", spread: "DAL -8.5", day: "Thu 11/26", time: "4:30 PM", tv: "FOX" },
+      { id: 4, away: "Chiefs", home: "Bills", spread: "BUF -2.5", day: "Thu 11/26", time: "8:20 PM", tv: "NBC" },
+      { id: 5, away: "Broncos", home: "Steelers", spread: "DEN -2.5", day: "Fri 11/27", time: "3:00 PM", tv: "Prime" },
+      { id: 6, away: "Saints", home: "Bengals", spread: "CIN -10.5", day: "Sun 11/29", time: "1:00 PM", tv: "FOX" },
+      { id: 7, away: "Giants", home: "Colts", spread: "NYG -6.5", day: "Sun 11/29", time: "1:00 PM", tv: "FOX" },
+      { id: 8, away: "Jets", home: "Dolphins", spread: "NYJ -3.5", day: "Sun 11/29", time: "1:00 PM", tv: "CBS" },
+      { id: 9, away: "Falcons", home: "Vikings", spread: "MIN -6.5", day: "Sun 11/29", time: "1:00 PM", tv: "FOX" },
+      { id: 10, away: "Titans", home: "Jaguars", spread: "JAX -14.5", day: "Sun 11/29", time: "1:00 PM", tv: "CBS" },
+      { id: 11, away: "Ravens", home: "Texans", spread: "HOU -6.5", day: "Sun 11/29", time: "1:00 PM", tv: "CBS" },
+      { id: 12, away: "Patriots", home: "Chargers", spread: "LAC -1.5", day: "Sun 11/29", time: "4:05 PM", tv: "CBS" },
+      { id: 13, away: "Commanders", home: "Cardinals", spread: "WAS -7.5", day: "Sun 11/29", time: "4:05 PM", tv: "FOX" },
+      { id: 14, away: "Seahawks", home: "49ers", spread: "SF -3.5", day: "Sun 11/29", time: "4:25 PM", tv: "FOX" },
+      { id: 15, away: "Raiders", home: "Browns", spread: "CLE -4.5", day: "Sun 11/29", time: "8:20 PM", tv: "NBC" },
+      { id: 16, away: "Panthers", home: "Buccaneers", spread: "TB -2.5", day: "Mon 11/30", time: "8:15 PM", tv: "ESPN" },
+    ],
+  },
 };
 
-for (let w = 12; w <= 18; w++) {
+for (let w = 13; w <= 18; w++) {
   WEEKS[w] = { label: `Week ${w}`, startDate: null, games: [] };
 }
 
